@@ -1,5 +1,6 @@
 from typing import Tuple
 import tensorflow as tf
+from configs.config import Options
 
 class deepLAST():
     def __init__(self, options: Options):
@@ -9,20 +10,21 @@ class deepLAST():
     @classmethod
     def get_model(cls, options: Options) -> tf.keras.Model:
         return cls(options)._node()
-   
-    def _get_optimizer(self) -> tf.optimizers.Optimizer:
-        if self.options.optimizer == "RMSprop":
-            optimizer = tf.optimizers.RMSprop(learning_rate=self.options.learning_rate,
-                                              momentum=self.options.momentum,
-                                              rho=self.options.rho,
-                                              epsilon=self.options.epsilon)
-        elif self.options.optimizer == "Adam":
-            optimizer = tf.optimizers.Adam(learning_rate=self.options.learning_rate,
-                                           beta_1=self.options.momentum,
-                                           beta_2=self.options.rho,
-                                           epsilon=self.options.epsilon)
+
+    @staticmethod
+    def get_optimizer(options: Options) -> tf.optimizers.Optimizer:
+        if options.optimizer == "RMSprop":
+            optimizer = tf.optimizers.RMSprop(learning_rate=options.learning_rate,
+                                              momentum=options.momentum,
+                                              rho=options.rho,
+                                              epsilon=options.epsilon)
+        elif options.optimizer == "Adam":
+            optimizer = tf.optimizers.Adam(learning_rate=options.learning_rate,
+                                           beta_1=options.momentum,
+                                           beta_2=options.rho,
+                                           epsilon=options.epsilon)
         else:
-            optimizer = self.options.optimizer
+            optimizer = options.optimizer
         return optimizer
     
     def _get_runit_layer(self) -> tf.keras.layers.Layer:
@@ -55,7 +57,7 @@ class deepLAST():
                                              input_shape=(self.options.units, ))(hidden)
             attention_result = tf.keras.layers.AdditiveAttention()([hidden, avg])
             attention_result = tf.keras.layers.Flatten()(attention_result)
-            attention_result = tf.keras.layers.RepeatVector()(attention_result)
+            attention_result = tf.keras.layers.RepeatVector(self._get_input_shape()[1])(attention_result)
             avg = tf.keras.layers.Concatenate()([attention_result, avg])
         else:
             fwd = runit(inputs_fwd)
@@ -72,8 +74,5 @@ class deepLAST():
                                        name="FF1",
                                        activation='relu')(flatt)
         model = tf.keras.Model(inputs=inputs, outputs=output)
-        model.compile(optimizer=self._get_optimizer(),
-                      loss=tf.losses.BinaryCrossentropy(from_logits=True),
-                      metrics=['accuracy'])
         
         return model

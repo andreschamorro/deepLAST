@@ -1,7 +1,8 @@
 from functools import partial
 import numpy as np
 import tensorflow as tf
-import dna2bit
+from . import dna2bit
+from configs.config import Options
 
 def nearby(seq):
     yield seq.replace('N', '')
@@ -24,10 +25,10 @@ def bytes2vec(byts, model, k):
     byts = byts.numpy()
     dnaSize = int.from_bytes(byts[:4], byteorder='big')
     # Unpack blocks of Ns in the file
-    blockCount, blockStarts, blockSizes = unpack_n_blocks(byts[4:])
+    blockCount, blockStarts, blockSizes = dna2bit.unpack_n_blocks(byts[4:])
     # DNA unpacked to nucleotide list
-    dnalist = unpack_dna(byts[8*(blockCount+1):])[:dnaSize]
-    rcolist = unpack_rco(byts[8*(blockCount+1):])[-dnaSize:]
+    dnalist = dna2bit.unpack_dna(byts[8*(blockCount+1):])[:dnaSize]
+    rcolist = dna2bit.unpack_rco(byts[8*(blockCount+1):])[-dnaSize:]
     # Change unknown nucleotide in sequence
     for st, bs in zip(blockStarts, blockSizes):
         dnalist[st:st+bs] = bs*['N']
