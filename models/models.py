@@ -1,3 +1,6 @@
+from typing import Tuple
+import tensorflow as tf
+
 class deepLAST():
     def __init__(self, options: Options):
         super(deepLAST, self).__init__()
@@ -35,9 +38,12 @@ class deepLAST():
                                         return_state=self.options.attention,
                                         return_sequences=True)
         return runit
+
+    def _get_input_shape(self) -> Tuple:
+        return (2, self.options.seq_size - self.options.k_size + 1, self.options.embedding_dim)
         
     def _node(self) -> tf.keras.Model:
-        inputs = tf.keras.layers.Input((2, 93, 100), dtype=tf.float32, name="INP")
+        inputs = tf.keras.layers.Input(self._get_input_shape(), dtype=tf.float32, name="INP")
         inputs_fwd, inputs_rev = tf.unstack(inputs, axis=1, name="UST")
         runit = self._get_runit_layer()
         if self.options.attention and isinstance(runit, tf.keras.layers.GRU):
@@ -49,7 +55,7 @@ class deepLAST():
                                              input_shape=(self.options.units, ))(hidden)
             attention_result = tf.keras.layers.AdditiveAttention()([hidden, avg])
             attention_result = tf.keras.layers.Flatten()(attention_result)
-            attention_result = tf.keras.layers.RepeatVector(93)(attention_result)
+            attention_result = tf.keras.layers.RepeatVector()(attention_result)
             avg = tf.keras.layers.Concatenate()([attention_result, avg])
         else:
             fwd = runit(inputs_fwd)
