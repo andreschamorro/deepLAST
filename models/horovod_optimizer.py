@@ -217,13 +217,13 @@ def run(d2v_model=None):
     objetive = partial(build_and_train, d2v_model, options)
     algo=tpe.suggest
 
-   # best_param = fmin(
-   #         fn=objetive,
-   #         space=search_space,
-   #         algo=algo,
-   #         max_evals=8,
-   #         trials=trials
-   # )
+    best_param = fmin(
+            fn=objetive,
+            space=search_space,
+            algo=algo,
+            max_evals=8,
+            trials=trials
+    )
 
-   # with open(results_path, "wb") as file:
-   #     pickle.dump(trials, file)
+    with open(results_path, "wb") as file:
+        pickle.dump(trials, file)
