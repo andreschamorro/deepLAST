@@ -178,6 +178,7 @@ def build_and_train(d2v_model, options: Options, options_dict):
 def run(d2v_model=None):
     import os
     import numpy as np
+    import pickle
     from functools import partial
     from pkg_resources import resource_filename
     from utils.dna2vec import MultiKModel
