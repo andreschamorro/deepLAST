@@ -184,11 +184,10 @@ def run(d2v_model=None):
     from utils.dna2vec import MultiKModel
 
     search_space = {
-        'gru_units': hp.qnormal('gru_units', 34, 5, 2),
-        'gru_dropout': hp.uniform('gru_dropout', 0, 0.4),
+        'units': hp.qnormal('units', 34, 5, 2),
+        'dropout': hp.uniform('dropout', 0, 0.4),
         'momentum': hp.uniform('momentum', 0, 1),
         'rho': hp.uniform('decay', 0, 1),
-        'repeat_probability': hp.uniform('repeat_probability', 0, 0.49),
         'learning_rate': hp.lognormal('learning_rate', -7, 0.5),
         'batch_size': hp.choice('batch_size', [32, 64, 128]),
     }
