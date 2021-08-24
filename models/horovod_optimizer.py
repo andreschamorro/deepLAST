@@ -25,6 +25,7 @@ from hyperopt import fmin, tpe, hp, Trials, STATUS_FAIL, STATUS_OK
 def _update_options(options: Options, dictionary: Dict[str, Any]) -> Options:
     for key, value in dictionary.items():
         options[key] = value
+    options.units = int(options.units)
     return options
 
 def _create_check_dir(options) -> str:
@@ -58,10 +59,6 @@ def train_hvd(options: Options, d2v_model, checkpoint_dir, extra_callback=None, 
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
     dtrain, dval, dtest = get_dataset(d2v_model, options)
-    for x, y in dtrain:
-        print("READ DATA")
-        print(x.shape)
-        break
     last_model = deepLAST.get_model(options)
 
     # Horovod: adjust learning rate based on number of GPUs.
@@ -197,6 +194,8 @@ def run(d2v_model=None):
             'last_rnn.json'
     )
     options = Options.get_options_from_json(last_rnn_options)
+
+    max_evals = 8
     results_path= os.path.join(options.summary_dir, "tf_results.pkl")
     try:
         with open(results_path, "rb") as file:
@@ -206,7 +205,7 @@ def run(d2v_model=None):
 #        _LOGGER.info("Starting from scratch: new trials.")
     else:
 #        _LOGGER.warning("Found saved Trials! Loading...")
-        max_evals = len(trials.trials) + nb_evals
+        max_evals += len(trials.trials)
 #        _LOGGER.info("Rerunning from %d trials to add another one.",
 #                     len(trials.trials))
     if not d2v_model:
