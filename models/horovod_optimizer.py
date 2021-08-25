@@ -220,7 +220,7 @@ def run(d2v_model=None):
             fn=objetive,
             space=search_space,
             algo=algo,
-            max_evals=8,
+            max_evals=max_evals,
             trials=trials
     )
 
