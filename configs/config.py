@@ -19,6 +19,7 @@ class Options(dict):
             option_dict = json.load(option_file)
 
         options = cls(option_dict)
+        options.logs_dir = os.path.join("run", options.exp_name, "logs/")
         options.summary_dir = os.path.join("run", options.exp_name, "summary/")
         options.checkpoint_dir = os.path.join("run", options.exp_name, "checkpoint/")
         return options
