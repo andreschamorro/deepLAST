@@ -72,7 +72,7 @@ class deepLAST():
 
         output = tf.keras.layers.Dense(1,
                                        name="FF1",
-                                       activation='relu')(flatt)
+                                       activation='sigmoid')(flatt)
         model = tf.keras.Model(inputs=inputs, outputs=output)
         
         return model
