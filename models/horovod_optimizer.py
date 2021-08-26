@@ -40,6 +40,7 @@ def _create_check_dir(options) -> str:
     return checkpoint_dir
 
 def train_hvd(options: Options, d2v_model, checkpoint_dir, extra_callback=None, cuda=False):
+    import json
     import tensorflow as tf
     import horovod.tensorflow.keras as hvd
     from data_loader.data_reader import get_dataset
@@ -73,7 +74,7 @@ def train_hvd(options: Options, d2v_model, checkpoint_dir, extra_callback=None, 
     # uses hvd.DistributedOptimizer() to compute gradients.
     last_model.compile(loss=tf.losses.BinaryCrossentropy(from_logits=True),
                         optimizer=opt,
-                        metrics=['accuracy'],
+                        metrics=['accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()],
                         experimental_run_tf_function=False)
     
     callbacks = [
@@ -116,16 +117,16 @@ def train_hvd(options: Options, d2v_model, checkpoint_dir, extra_callback=None, 
     
     # Train the model.
     # Horovod: adjust number of steps based on number of GPUs.
-    last_model.fit(dtrain,
-                   epochs=options.num_epochs,
-                   callbacks=callbacks,
-                   validation_data=dval, validation_steps=1,
-                   validation_batch_size=options.batch_size, validation_freq=1,
-                   steps_per_epoch=options.steps_per_epoch//hvd.size(),
-                   verbose=verbose,
-                   shuffle=True)
+    last_history = last_model.fit(dtrain, epochs=options.num_epochs,
+                                    callbacks=callbacks, validation_data=dval, 
+                                    validation_steps=1, validation_batch_size=options.batch_size, 
+                                    validation_freq=1, steps_per_epoch=options.steps_per_epoch//hvd.size(),
+                                    verbose=verbose, shuffle=True)
+    if hvd.rank() == 0:
+        with open(os.path.join(checkpoint_dir, 'history.json'), 'w') as file:
+            json.dump(str(last_history.history), file)
 
-    return last_model.evaluate(dtest, steps=options.evaluation_steps)
+    return last_model.evaluate(dtest, steps=32, workers=32, use_multiprocessing=True)
 
 # Objetive function
 def build_and_train(d2v_model, options: Options, options_dict):
@@ -150,7 +151,7 @@ def build_and_train(d2v_model, options: Options, options_dict):
 
     extra_callback = [KerasCallback(checkpoint_dir, options)]
     try:
-        loss, acc = train_hvd(
+        loss, acc, precission, recall = train_hvd(
                 options,
                 d2v_model,
                 checkpoint_dir,
@@ -165,8 +166,9 @@ def build_and_train(d2v_model, options: Options, options_dict):
     else:
         results["checkpoint_dir"] = checkpoint_dir
         results["status"] = STATUS_OK
-        results["loss"] = loss
-        results["Metrics"] = acc
+        results["loss"] = 1-recall
+        results["Metrics"] = {'Loss': loss, 'Accuracy': acc, 
+                'Precision': precission, 'Recall': recall}
         if np.isnan(results["loss"]):
             results["status"] = STATUS_FAIL
             results["loss"] = np.inf
@@ -186,7 +188,6 @@ def run(d2v_model=None):
         'momentum': hp.uniform('momentum', 0, 1),
         'rho': hp.uniform('decay', 0, 1),
         'learning_rate': hp.lognormal('learning_rate', -7, 0.5),
-        'batch_size': hp.choice('batch_size', [32, 64, 128]),
     }
 
     last_rnn_options = resource_filename(
