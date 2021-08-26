@@ -76,9 +76,7 @@ def train_and_eval(options: Options, d2v_model, checkpoint_dir, logger, extra_ca
          json.dump(str(last_history.history), file)
 
     logger.info("Starting model evaluation")
-## DEBUG
-## steps=options.evaluation_steps
-    return last_model.evaluate(dtest, steps=32, workers=32, use_multiprocessing=True)
+    return last_model.evaluate(dtest, steps=options.evaluation_steps, workers=32, use_multiprocessing=True)
 
 # Objetive function
 def build_and_train(d2v_model, logger, options: Options, options_dict):
@@ -90,8 +88,6 @@ def build_and_train(d2v_model, logger, options: Options, options_dict):
     :return: dict with fields 'loss' (scalar loss) and 'status' (success/failure status of run)
     """
     options = _update_options(options, options_dict)
-## DEBUG
-    options.data_dir = '../' + options.data_dir
     checkpoint_dir = _create_check_dir(options)
 
     results = {
