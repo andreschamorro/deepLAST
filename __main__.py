@@ -3,7 +3,7 @@
 """
 """
 
-from models import horovod_optimizer
+from models import singleworker_optimizer
 
 def main():
     return singleworker_optimizer.run()
