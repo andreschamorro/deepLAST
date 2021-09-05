@@ -9,8 +9,6 @@ import pickle
 from typing import Dict, Any
 from datetime import datetime
 from functools import partial
-import portpicker
-import multiprocessing
 from pkg_resources import resource_filename
 
 from utils.dna2vec import MultiKModel
