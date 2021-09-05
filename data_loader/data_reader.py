@@ -80,6 +80,7 @@ def get_dataset_training(model, options: Options):
         tf.data.TFRecordDataset, cycle_length=16, block_length=1)
     dva = dva.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
     dva = dva.filter(lambda x, y: x != None)
+    dva = dva.repeat()
     dva = dva.batch(batch_size=options.batch_size)
     
     return dta, dva
@@ -116,6 +117,7 @@ def get_dataset_testing(model, options: Options):
         tf.data.TFRecordDataset, cycle_length=16, block_length=1)
     dte = dte.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
     dte = dte.filter(lambda x, y: x != None)
+    dte = dte.repeat()
     dte = dte.batch(batch_size=options.batch_size)
     
     return dte
