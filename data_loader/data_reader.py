@@ -36,9 +36,8 @@ def bytes2vec(byts, model, k):
 
     return [[dna2vec(dnalist, model, k=k), dna2vec(rcolist, model, k=k)]]
 
-
-def get_dataset(model, options: Options):
-    """Reads in and processes the TFRecords dataset.
+def get_dataset_training(model, options: Options):
+    """Reads in and processes the TFRecords train and eval dataset.
     Buids a pipeline that returns pairs of features, label.
     """
     
@@ -81,9 +80,33 @@ def get_dataset(model, options: Options):
     dva = dva.map(map_func=_process_input, num_parallel_calls=8)
     dva = dva.batch(batch_size=options.batch_size)
     
+    return dta, dva
+
+def get_dataset_testing(model, options: Options):
+    """Reads in and processes the TFRecords test dataset.
+    Buids a pipeline that returns pairs of features, label.
+    """
+    
+    # Define field names, types, and sizes for TFRecords.
+    features = {
+        'id': tf.io.FixedLenFeature([], tf.string),
+        'sequence': tf.io.FixedLenFeature([], tf.string),
+        'label': tf.io.FixedLenFeature([], tf.int64)
+    }
+
+    
+    def _process_input(proto_seq):
+        """Helper function for input function that parses a serialized example."""
+        parsed_features = tf.io.parse_single_example(
+            serialized=proto_seq, features=features)
+
+        b2v = partial(bytes2vec, model=model, k=options.k_size)
+        seqfets = tf.py_function(func=b2v, inp=[parsed_features['sequence']], Tout=tf.float32)        
+        return seqfets, parsed_features['label']
+    
     dte_pattern = options.data_dir + "/l??_test_??-of-??.tfrecord"
     # First just list all file pathes to the sharded tfrecord dataset.
-    dte = tf.data.TFRecordDataset.list_files(dva_pattern)
+    dte = tf.data.TFRecordDataset.list_files(dte_pattern)
     # Make sure to fully shuffle the list of tfrecord files.
     dte = dte.shuffle(buffer_size=1000)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
@@ -92,4 +115,10 @@ def get_dataset(model, options: Options):
     dte = dte.map(map_func=_process_input, num_parallel_calls=8)
     dte = dte.batch(batch_size=options.batch_size)
     
-    return dta, dva, dte
+    return dte
+
+def get_dataset(model, options: Options):
+    """Reads in and processes the TFRecords dataset.
+    Buids a pipeline that returns pairs of features, label.
+    """
+    return get_dataset_training(model, options), get_dataset_testing(model, options)

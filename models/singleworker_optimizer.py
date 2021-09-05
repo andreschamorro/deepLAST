@@ -180,6 +180,3 @@ def run(d2v_model=None):
 
     with open(results_path, "wb") as file:
         pickle.dump(trials, file)
-    
-    # Delete the `TF_CONFIG`, and kill any background tasks so they don't affect the next section.
-    os.environ.pop('TF_CONFIG', None)
