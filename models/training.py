@@ -72,7 +72,7 @@ def testing(options: Options, d2v_model, last_model, logger):
     logger.info("Starting model testing")
     return last_model.evaluate(dtest, steps=options.evaluation_steps, workers=32, use_multiprocessing=True)
 
-def run(d2v_model):
+def run():
 
     last_rnn_options = resource_filename(
             'configs',
@@ -84,11 +84,11 @@ def run(d2v_model):
     log_dir = os.path.join(options.logs_dir, 'logs-{}'.format(now))
     logger = Logger.get_logger('hyper_opt', log_dir)
 
-    #logger.info("Load dna2vec model")
-    #d2v_pretrained = resource_filename(
-    #    'models',
-    #    os.path.join('pretrained', 'dna2vec-20161219-0153-k3to8-100d-10c-29320Mbp-sliding-Xat.w2v'))
-    #d2v_model = MultiKModel(d2v_pretrained)
+    logger.info("Load dna2vec model")
+    d2v_pretrained = resource_filename(
+        'models',
+        os.path.join('pretrained', 'dna2vec-20161219-0153-k3to8-100d-10c-29320Mbp-sliding-Xat.w2v'))
+    d2v_model = MultiKModel(d2v_pretrained)
 
     logger.info("Create checkpoint dir")
     checkpoint_dir = _create_check_dir(options)
