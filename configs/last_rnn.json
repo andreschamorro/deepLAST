@@ -28,5 +28,7 @@
 	"_attention" : "Use AdditiveAttention layer? (only with GRU).",
   "attention" : 1, 
 	"_testing": "Testing Parameter",
-	"evaluation_steps" : 1000
+	"evaluation_steps" : 1000,
+	"_tensorflow" : "Tensorflow parameters",
+	"data_parallel_calls" : 8
 }
