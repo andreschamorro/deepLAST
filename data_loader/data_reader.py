@@ -67,6 +67,7 @@ def get_dataset_training(model, options: Options):
     dta = dta.interleave(
         tf.data.TFRecordDataset, cycle_length=16, block_length=1)
     dta = dta.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
+    dta = dta.filter(lambda x, y: x != None)
     dta = dta.batch(batch_size=options.batch_size).repeat(count=options.num_epochs)
     
     dva_pattern = options.data_dir + "/l??_val_??-of-??.tfrecord"
@@ -78,6 +79,7 @@ def get_dataset_training(model, options: Options):
     dva = dva.interleave(
         tf.data.TFRecordDataset, cycle_length=16, block_length=1)
     dva = dva.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
+    dva = dva.filter(lambda x, y: x != None)
     dva = dva.batch(batch_size=options.batch_size)
     
     return dta, dva
@@ -113,6 +115,7 @@ def get_dataset_testing(model, options: Options):
     dte = dte.interleave(
         tf.data.TFRecordDataset, cycle_length=16, block_length=1)
     dte = dte.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
+    dte = dte.filter(lambda x, y: x != None)
     dte = dte.batch(batch_size=options.batch_size)
     
     return dte
