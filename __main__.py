@@ -3,6 +3,7 @@
 """
 """
 import click
+from glob import glob
 from models import training
 from models import singleworker_optimizer
 from data_loader import processingfasta
@@ -24,7 +25,14 @@ def optimizer():
 @click.option('-d', '--outdir', type=str, default='./tfdata', help='output dir')
 def fastq2tfrecord(fafiles, classes, d2vmodel, kmersize, ignore, outdir):
     """Format fastas file to train, validation and test TFRecords"""
-    processingfasta.run(fafiles, classes.split(','), outdir, d2vmodel, kmersize, ignore)
+    fafilenames = []
+    for filename in fafiles:
+        expanded = list(glob(filename))
+        if len(expanded) == 0 and '*' not in filename:
+            raise(click.BadParameter(
+                "file '{}' not found".format(filename)))
+        filenames.extend(expanded)
+    processingfasta.run(fafilenames, classes.split(','), outdir, d2vmodel, kmersize, ignore)
 
 @click.group()
 @click.pass_context
