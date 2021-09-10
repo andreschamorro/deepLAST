@@ -164,7 +164,7 @@ class Reader(mp.Process):
                 self.book_queue.task_done()
                 break
             with tqdm.tqdm(total=get_uncompressed_size(next_book), desc=os.path.basename(next_book), position=self.pos) as pbar:
-                cls = os.path.dirname(next_book).split('/')[-1]
+                cls = os.path.dirname(next_book).split('/')[-2]
                 label = self.classes_list.index(cls)
                 with gzip.open(next_book, 'rt') as fasta:
                     for record in SeqIO.parse(fasta, "fastq"):
