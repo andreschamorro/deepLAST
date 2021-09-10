@@ -31,7 +31,7 @@ def fastq2tfrecord(fafiles, classes, d2vmodel, kmersize, ignore, outdir):
         if len(expanded) == 0 and '*' not in filename:
             raise(click.BadParameter(
                 "file '{}' not found".format(filename)))
-        filenames.extend(expanded)
+        fafilenames.extend(expanded)
     processingfasta.run(fafilenames, classes.split(','), outdir, d2vmodel, kmersize, ignore)
 
 @click.group()
