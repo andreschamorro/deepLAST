@@ -5,7 +5,9 @@ from . import dna2bit
 from configs.config import Options
 
 def nearby(seq):
-    yield seq.replace('N', '')
+    sv = seq.replace('N', '')
+    if len(sv) > 2:
+        yield sv
     for sv in seq.split('N'):
         if len(sv) > 2:
             yield sv
@@ -64,9 +66,9 @@ def get_dataset_training(model, options: Options):
     # Make sure to fully shuffle the list of tfrecord files.
     dta = dta.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
-    dta = dta.interleave(
-        tf.data.TFRecordDataset, cycle_length=16, block_length=1)
-    dta = dta.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
+    dta = dta.interleave(lambda d:
+        tf.data.TFRecordDataset(d).map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls), 
+        cycle_length=16, block_length=1, , num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
     dta = dta.filter(lambda x, y: x != None)
     dta = dta.batch(batch_size=options.batch_size).repeat(count=options.num_epochs)
     
@@ -76,9 +78,9 @@ def get_dataset_training(model, options: Options):
     # Make sure to fully shuffle the list of tfrecord files.
     dva = dva.shuffle(buffer_size=1000)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
-    dva = dva.interleave(
-        tf.data.TFRecordDataset, cycle_length=16, block_length=1)
-    dva = dva.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
+    dva = dva.interleave(lambda d:
+        tf.data.TFRecordDataset(d).map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls), 
+        cycle_length=16, block_length=1, , num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
     dva = dva.filter(lambda x, y: x != None)
     dva = dva.repeat()
     dva = dva.batch(batch_size=options.batch_size)
@@ -113,9 +115,9 @@ def get_dataset_testing(model, options: Options):
     # Make sure to fully shuffle the list of tfrecord files.
     dte = dte.shuffle(buffer_size=1000)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
-    dte = dte.interleave(
-        tf.data.TFRecordDataset, cycle_length=16, block_length=1)
-    dte = dte.map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls)
+    dte = dte.interleave(lambda d:
+        tf.data.TFRecordDataset(d).map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls), 
+        cycle_length=16, block_length=1, , num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
     dte = dte.filter(lambda x, y: x != None)
     dte = dte.repeat()
     dte = dte.batch(batch_size=options.batch_size)
@@ -126,4 +128,6 @@ def get_dataset(model, options: Options):
     """Reads in and processes the TFRecords dataset.
     Buids a pipeline that returns pairs of features, label.
     """
-    return get_dataset_training(model, options), get_dataset_testing(model, options)
+    dta, dva = get_dataset_training(model, options)
+    dte = get_dataset_testing(model, options)
+    return dta, dva, dte
