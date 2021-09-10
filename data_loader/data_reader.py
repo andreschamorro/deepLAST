@@ -66,9 +66,9 @@ def get_dataset_training(model, options: Options):
     # Make sure to fully shuffle the list of tfrecord files.
     dta = dta.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
-    dta = dta.interleave(lambda d:
-        tf.data.TFRecordDataset(d).map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls), 
-        cycle_length=16, block_length=1, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
+    dta = dta.interleave(
+            tf.data.TFRecordDataset, cycle_length=16, block_length=1, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
+    dta = dta.map(map_func=_process_input, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
     dta = dta.filter(lambda x, y: x != None)
     dta = dta.batch(batch_size=options.batch_size).repeat(count=options.num_epochs)
     
@@ -78,9 +78,9 @@ def get_dataset_training(model, options: Options):
     # Make sure to fully shuffle the list of tfrecord files.
     dva = dva.shuffle(buffer_size=1000)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
-    dva = dva.interleave(lambda d:
-        tf.data.TFRecordDataset(d).map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls), 
-        cycle_length=16, block_length=1, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
+    dva = dva.interleave(
+            tf.data.TFRecordDataset, cycle_length=16, block_length=1, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
+    dva = dva.map(map_func=_process_input, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
     dva = dva.filter(lambda x, y: x != None)
     dva = dva.repeat()
     dva = dva.batch(batch_size=options.batch_size)
@@ -115,9 +115,9 @@ def get_dataset_testing(model, options: Options):
     # Make sure to fully shuffle the list of tfrecord files.
     dte = dte.shuffle(buffer_size=1000)
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
-    dte = dte.interleave(lambda d:
-        tf.data.TFRecordDataset(d).map(map_func=_process_input, num_parallel_calls=options.data_parallel_calls), 
-        cycle_length=16, block_length=1, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
+    dte = dte.interleave(
+            tf.data.TFRecordDataset, cycle_length=16, block_length=1)
+    dte = dte.map(map_func=_process_input, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
     dte = dte.filter(lambda x, y: x != None)
     dte = dte.repeat()
     dte = dte.batch(batch_size=options.batch_size)
