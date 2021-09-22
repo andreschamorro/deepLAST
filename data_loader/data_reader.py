@@ -20,7 +20,7 @@ def dna2vec(dnalist, model, k):
             vecs.append(model.vector(sub))
         except KeyError:
             sub_v = [model.vector(sv) for sv in nearby(sub)]
-            return vecs.append(np.average(sub_v, axis=0) if len(sub_v) > 0 else np.zeros(100))
+            vecs.append(np.average(sub_v, axis=0) if len(sub_v) > 0 else np.zeros(100))
     return vecs
 
 def bytes2vec(byts, model, k):
@@ -68,11 +68,8 @@ def get_dataset_training(model, options: Options):
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
     dta = dta.interleave(
             tf.data.TFRecordDataset, cycle_length=16, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
-    dta = dta.batch(  # Vectorize your mapped function
-            options.batch_size * 16, drop_remainder=True)
     dta = dta.map(map_func=_process_input, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
-    dta = dta.cache().prefetch(tf.data.AUTOTUNE)
-    dta = dta.filter(lambda x, y: x != None)
+    dta = dta.prefetch(tf.data.AUTOTUNE)
     dta = dta.batch(batch_size=options.batch_size).repeat(count=options.num_epochs)
     
     dva_pattern = options.data_dir + "/l??_val_??-of-??.tfrecord"
@@ -83,11 +80,8 @@ def get_dataset_training(model, options: Options):
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
     dva = dva.interleave(
             tf.data.TFRecordDataset, cycle_length=16, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
-    dva = dva.batch(  # Vectorize your mapped function
-            options.batch_size * 16, drop_remainder=True)
     dva = dva.map(map_func=_process_input, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
-    dva = dva.cache().prefetch(tf.data.AUTOTUNE)
-    dva = dva.filter(lambda x, y: x != None)
+    dva = dva.prefetch(tf.data.AUTOTUNE)
     dva = dva.repeat()
     dva = dva.batch(batch_size=options.batch_size)
     
@@ -123,11 +117,8 @@ def get_dataset_testing(model, options: Options):
     # Preprocesses 16 files concurrently and interleaves records from each file into a single, unified dataset.
     dte = dte.interleave(
             tf.data.TFRecordDataset, cycle_length=16)
-    dte = dte.batch(  # Vectorize your mapped function
-            options.batch_size * 16, drop_remainder=True)
     dte = dte.map(map_func=_process_input, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False)
-    dte = dte.cache().prefetch(tf.data.AUTOTUNE)
-    dte = dte.filter(lambda x, y: x != None)
+    dte = dte.prefetch(tf.data.AUTOTUNE)
     dte = dte.repeat()
     dte = dte.batch(batch_size=options.batch_size)
     
