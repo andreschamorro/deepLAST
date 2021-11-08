@@ -9,6 +9,7 @@ __pycache__/
 
 # Distribution / packaging
 run/
+notebooks/
 *.egg-info/
 .installed.cfg
 *.egg
