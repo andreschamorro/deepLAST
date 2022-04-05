@@ -66,7 +66,8 @@ class deepLAST():
         
         logits = tf.keras.layers.Dense(1,
                                        name="FF0",
-                                       activation=None)(avg)
+                                       activation='sigmoid')(avg)
+        #soft = tf.keras.layers.Softmax(axis=2)(logits)
         
         flatt = tf.keras.layers.Flatten(name="FL0")(logits)
 
