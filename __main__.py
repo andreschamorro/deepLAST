@@ -4,9 +4,14 @@
 """
 import click
 from glob import glob
+from models import fastdna
 from models import training
 from models import singleworker_optimizer
 from data_loader import processingfasta
+
+@click.command("fastdna")
+def fastdna():
+    return fastdna.run()
 
 @click.command("train")
 def train():
@@ -23,6 +28,7 @@ def optimizer():
 @click.option('-k', '--kmersize', type=int, default=8, help='kmer size')
 @click.option('-i', '--ignore', type=str, help='drop sequence in files ids')
 @click.option('-d', '--outdir', type=str, default='./tfdata', help='output dir')
+
 def fastq2tfrecord(fafiles, classes, d2vmodel, kmersize, ignore, outdir):
     """Format fastas file to train, validation and test TFRecords"""
     fafilenames = []
@@ -39,6 +45,7 @@ def fastq2tfrecord(fafiles, classes, d2vmodel, kmersize, ignore, outdir):
 def main(ctx):
     pass
 
+main.add_command(fastdna)
 main.add_command(train)
 main.add_command(optimizer)
 main.add_command(fastq2tfrecord)

@@ -1,0 +1,11 @@
+{
+  "exp_name": "fastdna_model",
+  "_trainin" : "Training Parameter",
+	"data_dir" : "run/data/hg38/chrs/tests",
+  "num_epochs" : 2,
+  "vector_size" : 100,
+  "k_low" : 3, 
+  "k_high" : 8,
+  "rseed_trainset" : 7,
+  "workers" : 4
+}
