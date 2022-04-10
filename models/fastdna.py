@@ -79,18 +79,16 @@ def build_model(options: Options, logger, prev_checkpoint=None):
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
         logger.info('Fastdna restoring from {} epoch'.format(latest_checkpoint))
-        model = FastText.load(latest_checkpoint)
+        return FastText.load(latest_checkpoint), True
     else:
-        model = FastText(vector_size=options.vector_size, workers=options.workers)
+        return FastText(vector_size=options.vector_size, workers=options.workers), False
 
-    return model
-
-def build_vocab(model, kmer_seq_iterable, logger, save=False):
+def build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=False, save=False):
 
     # build the vocabulary
     logger.info("Build the vocabulary")
     start_time = time.time()
-    model.build_vocab(corpus_iterable=kmer_seq_iterable, update=True)
+    model.build_vocab(corpus_iterable=kmer_seq_iterable, update=update)
     stop_time = time.time()
     if save:
         model.save(os.path.join(checkpoint_dir, 'model_vocab.model'))
@@ -118,7 +116,7 @@ def write_vec(model, outpath):
     out_filename = '{}.w2v'.format(outpath)
     model.wv.save_word2vec_format(out_filename, binary=False)
 
-def run(prev_checkpoint=None, save=True):
+def run(prev_checkpoint=None, save_vocab=False, save_model=True):
     fast_options = resource_filename(
             'configs',
             'fastdna.json'
@@ -133,7 +131,7 @@ def run(prev_checkpoint=None, save=True):
     checkpoint_dir = _create_check_dir(options)
 
     logger.info("Build model")
-    model = build_model(options, logger, prev_checkpoint)
+    model, update = build_model(options, logger, prev_checkpoint)
 
     logger.info("Load kmer generator")
     kmer_seq_iterable = KmerGenerator(
@@ -143,9 +141,9 @@ def run(prev_checkpoint=None, save=True):
             data_dir=options.data_dir,
             logger=logger)
 
-    model = build_vocab(model, kmer_seq_iterable, logger)
+    model = build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=update, save=save_vocab)
 
     model = training(options, model, kmer_seq_iterable, checkpoint_dir, logger)
-    if save:
+    if save_model:
         logger.info("Save wv vectors")
         write_vec(model, os.path.join(checkpoint_dir, 'fastdna_model'))
