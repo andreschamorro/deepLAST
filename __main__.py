@@ -5,6 +5,7 @@
 import click
 from glob import glob
 from models import fastdna
+from models import dnavec
 from models import training
 from models import singleworker_optimizer
 from data_loader import processingfasta
@@ -12,6 +13,10 @@ from data_loader import processingfasta
 @click.command("fastdna")
 def fastdna():
     return fastdna.run()
+
+@click.command("dnavec")
+def dnavec():
+    return dnavec.run()
 
 @click.command("train")
 def train():

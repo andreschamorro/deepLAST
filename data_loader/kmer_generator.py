@@ -41,7 +41,7 @@ class KmerGenerator:
         """
         Split a sequence into small sequences based on some criteria, e.g. 'N' characters
         """
-        return filter(bool, re.split(r'[^ACGTacgt]+', str(seq)))
+        return filter(bool, re.split(r'[^ACGTacgt]+', str(seq).upper()))
 
     def _sliding_kmer(self, rng, seq):
         return [seq[i: i + rng.randint(self.k_low, self.k_high + 1)] for i in range(len(seq) - self.k_high + 1)]
