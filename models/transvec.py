@@ -6,7 +6,7 @@ from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
 from configs.config import Options
 from data_loader.kmer_generator import KmerGenerator
-from data_loader.thread_generator import ThreadedGenerator 
+from data_loader.threadedgenerator import ThreadedGenerator 
 from utils import logger as Logger
 import time  # To time our operations
 
