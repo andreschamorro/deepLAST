@@ -25,7 +25,7 @@ def _create_check_dir(options) -> str:
 class ModelCheckpoint(CallbackAny2Vec):
     '''Callback to save model after each epoch.'''
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, save_last=10):
         self.filepath = filepath
         self.epoch = 0
 
@@ -35,7 +35,7 @@ class ModelCheckpoint(CallbackAny2Vec):
 
     def _save_model(self, model, epoch, batch, logs):
         logs = logs or {}
-        output_path = self._get_file_path(epoch, batch, logs)
+        output_path = self._get_file_path(epoch % save_last, batch, logs)
         model.save(output_path)
 
     def _get_file_path(self, epoch, batch, logs):
