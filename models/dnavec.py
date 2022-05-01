@@ -134,10 +134,11 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
 
     logger.info("Load kmer generator")
     kmer_seq_iterable = KmerGenerator(
+            options.fasta_file,
+            options.gff_file,
             options.k_low,
             options.k_high,
             options.rseed_trainset,
-            data_dir=options.data_dir,
             logger=logger)
 
     model = build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=update, save=save_vocab)

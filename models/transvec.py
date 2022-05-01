@@ -3,7 +3,7 @@ from datetime import datetime
 from pkg_resources import resource_filename
 from gensim.test.utils import get_tmpfile
 from gensim.models.callbacks import CallbackAny2Vec
-from gensim.models.fasttext import FastText
+from gensim.models.doc2vec import Doc2Vec
 from configs.config import Options
 from data_loader.kmer_generator import KmerGenerator
 from utils import logger as Logger
@@ -79,9 +79,9 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
         logger.info('Fastdna restoring from {} epoch'.format(latest_checkpoint))
-        return FastText.load(latest_checkpoint), True
+        return Doc2Vec.load(latest_checkpoint), True
     else:
-        return FastText(vector_size=options.vector_size, workers=options.workers), False
+        return Doc2Vec(vector_size=options.vector_size, workers=options.workers), False
 
 def build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=False, save=False):
 
