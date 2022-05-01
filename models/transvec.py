@@ -28,6 +28,7 @@ class ModelCheckpoint(CallbackAny2Vec):
 
     def __init__(self, filepath, save_last=10):
         self.filepath = filepath
+        self.save_last = save_last
         self.epoch = 0
 
     def on_epoch_end(self, model):
@@ -36,7 +37,7 @@ class ModelCheckpoint(CallbackAny2Vec):
 
     def _save_model(self, model, epoch, batch, logs):
         logs = logs or {}
-        output_path = self._get_file_path(epoch % save_last, batch, logs)
+        output_path = self._get_file_path(epoch % self.save_last, batch, logs)
         model.save(output_path)
 
     def _get_file_path(self, epoch, batch, logs):
@@ -76,13 +77,19 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
     # if there is no checkpoint available.
     checkpoints = [os.path.join(prev_checkpoint, f)
             for f in os.listdir(prev_checkpoint) if f[:2].isdigit()]
+    old_model = [os.path.join(prev_checkpoint, f)
+            for f in os.listdir(prev_checkpoint) if os.path.splitext(f)[1] == '.model']
     # make_or_restore_model
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
         logger.info('Transvec restoring from {} epoch'.format(latest_checkpoint))
-        return Doc2Vec.load(latest_checkpoint), True
+        return Doc2Vec.load(latest_checkpoint), False
+    elif old_model:
+        latest_model = max(old_model, key=os.path.getctime)
+        logger.info('Transvec restoring from old model {}'.format(latest_model))
+        return Doc2Vec.load(latest_model), False
     else:
-        return Doc2Vec(vector_size=options.vector_size, workers=options.workers), False
+        return Doc2Vec(vector_size=options.vector_size, workers=options.workers), True
 
 def build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=False, save=False):
 
@@ -141,8 +148,8 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
             options.k_high,
             options.rseed_trainset,
             logger=logger)
-
-    model = build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=update, save=save_vocab)
+    if update:
+        model = build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=update, save=save_vocab)
 
     model = training(options, model, kmer_seq_iterable, checkpoint_dir, logger)
     if save_model:

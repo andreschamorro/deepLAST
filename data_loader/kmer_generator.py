@@ -16,6 +16,7 @@ from gensim.models.doc2vec import TaggedDocument
 from typing import NamedTuple
 from Bio import bgzf, SeqIO
 from tqdm import tqdm
+import logging
 
 class Feature(NamedTuple):
     seq: str
@@ -41,7 +42,7 @@ class Genome:
         self.genome_dir = genome_dir
         self.genome_file = genome_file
         genome_basename = os.path.splitext(os.path.basename(genome_file))
-        self.feature_file = genome_dir + genome_basename[0] + '.fe' + genome_basename[1] 
+        self.feature_file = os.path.join(genome_dir, genome_basename[0]+'.fe'+ genome_basename[1])
         self.gff_file = gff_file
         self.features = None
         self.logger = logger
@@ -124,8 +125,8 @@ class KmerGenerator:
         self.logger = logger 
         self.iter_count = 0
         self.gff_file = gff_file
-        self.genome_dir = os.path.dirname(genome_file) if genome_dir is None else genome_dir
-        self.genome = Genome(genome_dir, genome_file, gff_file)
+        self.genome_dir = os.path.dirname(self.genome_file) if genome_dir is None else genome_dir
+        self.genome = Genome(self.genome_dir, self.genome_file, gff_file)
         self.genome.build_genome()
 
     def _seq_fragmenter(self, seq):
@@ -139,7 +140,7 @@ class KmerGenerator:
 
     def _generator(self, rng):
         if self.logger is not None:
-            log.addHandler(TqdmLoggingHandler())
+            self.logger.addHandler(TqdmLoggingHandler())
         for features, i in tqdm(enumerate(self.genome.features), total=len(self.genome.features))
             yield features.seq, i
 
