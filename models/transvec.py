@@ -142,9 +142,7 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
             options.rseed_trainset,
             logger=logger)
 
-    thread_generator = ThreadedGenerator(kmer_seq_iterable, queue_maxsize=4096, daemon=True)
-
-    model = build_vocab(model, thread_generator, checkpoint_dir, logger, update=update, save=save_vocab)
+    model = build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=update, save=save_vocab)
 
     model = training(options, model, kmer_seq_iterable, checkpoint_dir, logger)
     if save_model:

@@ -3,8 +3,9 @@ import resource
 import argparse
 import itertools
 import re
+import six
 import gzip
-from threading import Lock
+from threading import Thread, Lock
 import numpy as np
 from enum import Enum
 from typing import Dict, List
@@ -12,7 +13,12 @@ import gffutils
 from pyfaidx import Fasta
 import sqlite3
 from gensim.models.doc2vec import TaggedDocument
+from typing import NamedTuple
+from Bio import bgzf, SeqIO
 
+class Feature(NamedTuple):
+    seq: str
+    sid: str
 
 def memory_usage():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1E6
@@ -29,7 +35,7 @@ class BaseSet(Enum):
 
 class KmerGenerator:
 
-    def __init__(self, fasta_file, gff_file, k_low, k_high, rand_seed, rebuild=False, build_db=True, logger=None):
+    def __init__(self, fasta_file, gff_file, k_low, k_high, rand_seed, features_file='', rebuild=False, build_db=True, logger=None):
         self.fasta_file = fasta_file
         self.k_low = k_low
         self.k_high = k_high
@@ -43,6 +49,8 @@ class KmerGenerator:
             self.logger.info('Opened file: {}'.format(fasta_file))
             self.logger.info('Memory usage: {} MB'.format(memory_usage()))
         self.gff_db = self.build_db(rebuild, build_db)
+        self.features = None
+        self.features_file = features_file
 
     def build_db(self, rebuild=False, build_db=True):
         self.db_name = os.path.splitext(self.gff_file)[0] + '.db'
@@ -97,17 +105,36 @@ class KmerGenerator:
             for seq, seqid in self._children(fdb, s_type, order_by=order_by, reverse=(fdb.strand == '-')):
                 yield seq, seqid, fdb.id
 
+    def prefetch_features(self, f_type='transcript', s_type='exon', order_by='start'):
+        if self.logger is not None:
+            self.logger.info('Prefetch features')
+        if os.path.exists(self.features_file):
+            if self.logger is not None:
+                self.logger.info('Features file exist, reading...')
+            with bgzf.open(self.features_file, 'r') as features_handle:
+                self.features = [Feature(record.seq, record.id) for record in SeqIO.parse(features_handle, "fasta")]
+        else:
+            if self.logger is not None:
+                self.logger.info('Create features...')
+            self.features = [Feature(seq, seqid) for seq, seqid, _ in self._generator(f_type, s_type, order_by)]
+            Thread().start(target=_write_features())
+
+    def _write_features():
+        if self.features is None:
+            return
+        with bgzf.open(self.features_file, 'w') as handle:
+            SeqIO.write(self.features, handle, "fasta")
+        return
+
     def __iter__(self):
         self.iter_count += 1
         rng = np.random.RandomState(self.rand_seed)
-        for seq, seqid, _ in self._generator():
-            n_seq_splits = list(self._seq_fragmenter(seq))
+        if self.features is None:
+            self.prefetch_features()
+        for feature, i in enumerate(self.features):
+            n_seq_splits = list(self._seq_fragmenter(feature.seq))
             # self.logger.debug('Splits of len={} to: {}'.format(len(seq), [len(f) for f in acgt_seq_splits]))
             for s_seq in n_seq_splits:
                 kmer_seq = self._sliding_kmer(rng, s_seq)  # list of strings
                 if len(kmer_seq) > 0:
-                    if self.iter_count == 1:
-                        # only collect stats on the first call
-                        # self.histogram.add(kmer_seq)
-                        pass
-                    yield TaggedDocument(kmer_seq, seqid)
+                    yield TaggedDocument(kmer_seq, [i])
