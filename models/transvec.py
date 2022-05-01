@@ -17,7 +17,7 @@ def _create_check_dir(options) -> str:
         str: standarized logdir path.
     """
     now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    checkpoint_dir = os.path.join(options.checkpoint_dir, "fastdna_training-{}".format(now))
+    checkpoint_dir = os.path.join(options.checkpoint_dir, "transvec_training-{}".format(now))
     # create file handler which logs even debug messages
     os.makedirs(f'{checkpoint_dir}', exist_ok=True)
     return checkpoint_dir
@@ -78,7 +78,7 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
     # make_or_restore_model
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
-        logger.info('Fastdna restoring from {} epoch'.format(latest_checkpoint))
+        logger.info('Transvec restoring from {} epoch'.format(latest_checkpoint))
         return Doc2Vec.load(latest_checkpoint), True
     else:
         return Doc2Vec(vector_size=options.vector_size, workers=options.workers), False
@@ -103,7 +103,7 @@ def training(options: Options, model, kmer_seq_iterable, checkpoint_dir, logger,
     if extra_callback: callbacks.append(extra_callback)
 
     # train
-    logger.info("Fastdna training...")
+    logger.info("Transvec training...")
     start_time = time.time()
     model.train(corpus_iterable=kmer_seq_iterable, total_examples=model.corpus_count, epochs=options.num_epochs, callbacks=callbacks)
     stop_time = time.time()
@@ -118,13 +118,13 @@ def write_vec(model, outpath):
 def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=True):
     fast_options = resource_filename(
             'configs',
-            'fastdna.json'
+            'transvec.json'
     )
     options = Options.get_options_from_json(fast_options)
 
     now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     log_dir = os.path.join(options.logs_dir, 'logs-{}'.format(now))
-    logger = Logger.get_logger('fastdna', log_dir)
+    logger = Logger.get_logger('transvec', log_dir)
 
     logger.info("Create checkpoint dir")
     checkpoint_dir = _create_check_dir(options)
@@ -146,4 +146,4 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     model = training(options, model, kmer_seq_iterable, checkpoint_dir, logger)
     if save_model:
         logger.info("Save wv vectors")
-        write_vec(model, os.path.join(checkpoint_dir, 'fastdna_model'))
+        write_vec(model, os.path.join(checkpoint_dir, 'transvec_model'))
