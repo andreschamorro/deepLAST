@@ -11,6 +11,7 @@ from typing import Dict, List
 import gffutils
 from pyfaidx import Fasta
 import sqlite3
+from gensim.models.doc2vec import TaggedDocument
 
 
 def memory_usage():
@@ -103,4 +104,4 @@ class KmerGenerator:
                         # only collect stats on the first call
                         # self.histogram.add(kmer_seq)
                         pass
-                    yield kmer_seq, seqid
+                    yield TaggedDocument(kmer_seq, seqid)
