@@ -1,5 +1,5 @@
 {
-  "exp_name": "fastdna_model",
+  "exp_name": "transvec_model",
   "_trainin" : "Training Parameter",
 	"fasta_file" : "data/hg38/hg38.fa.gz",
 	"gff_file" : "data/gencode.v39.annotation.gff3.gz",
