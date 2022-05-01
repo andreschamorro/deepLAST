@@ -50,24 +50,30 @@ class KmerGenerator:
             try:
                 if os.path.exists(self.db_name) and os.path.getmtime(
                         self.db_name) >= os.path.getmtime(self.gff_file):
-                    gff_db = gffutils.FeatureDB(self.db_name)
-                    self.logger.info('Read gff database: {}'.format(db_name))
+                    gff_db = sqlite3.connect(self.db_name, check_same_thread=False)
+                    gff_db = gffutils.FeatureDB(gff_db)
+                    if self.logger is not None:
+                        self.logger.info('Read gff database: {}'.format(self.db_name))
                 elif os.path.exists(self.db_name) and os.path.getmtime(
                         self.db_name) < os.path.getmtime(
                             self.gff_file) and not rebuild:
-                    gff_db = gffutils.FeatureDB(self.db_name)
+                    gff_db = sqlite3.connect(self.db_name, check_same_thread=False)
+                    gff_db = gffutils.FeatureDB(gff_db)
                     warnings.warn(
                         "Database file {0} is older than GFF file {1}.".format(
                             self.db_name, self.gff_file), RuntimeWarning)
                 elif build_db:
-                    self.logger.info('Build gff database: {}'.format(db_name))
+                    if self.logger is not None:
+                        self.logger.info('Build gff database: {}'.format(self.db_name))
                     gff_db = gffutils.create_db(self.gff_file, ':memory:', merge_strategy="create_unique", keep_order=True)
                     bk_gff = sqlite3.connect(self.db_name)
                     gff_db.conn.backup(bk_gff)
                     bk_gff.close()
                 else:
-                    self.logger.info('Read gff database: {}'.format(db_name))
-                    gff_db = gffutils.FeatureDB(self.db_name)
+                    if self.logger is not None:
+                        self.logger.info('Read gff database: {}'.format(self.db_name))
+                    gff_db = sqlite3.connect(self.db_name, check_same_thread=False)
+                    gff_db = gffutils.FeatureDB(gff_db)
             except Exception:
                 # Handle potential exceptions
                 raise
