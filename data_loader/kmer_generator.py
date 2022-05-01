@@ -35,17 +35,17 @@ class KmerGenerator:
         self.rand_seed = rand_seed
         self.logger = logger 
         self.iter_count = 0
+        self.lock = Lock()
+        self.gff_file = gff_file
         self._fasta = Fasta(filename=fasta_file, sequence_always_upper=True)
         if self.logger is not None:
             self.logger.info('Opened file: {}'.format(fasta_file))
             self.logger.info('Memory usage: {} MB'.format(memory_usage()))
-        self.gff_file = gff_file
         self.gff_db = self.build_db(rebuild, build_db)
 
     def build_db(self, rebuild=False, build_db=True):
         self.db_name = os.path.splitext(self.gff_file)[0] + '.db'
-        lock = Lock()
-        with lock:  # lock around index generation so only one thread calls method
+        with self.lock:  # lock around index generation so only one thread calls method
             try:
                 if os.path.exists(self.db_name) and os.path.getmtime(
                         self.db_name) >= os.path.getmtime(self.gff_file):
