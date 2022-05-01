@@ -1,7 +1,7 @@
 {
   "exp_name": "transvec_model",
   "_trainin" : "Training Parameter",
-    "fasta_file" : "run/data/hg38/hg38.fa.gz",
+    "genome_file" : "run/data/hg38/hg38.fa.gz",
     "gff_file" : "run/data/hg38/annotations/gencode.v40.annotation.gff3.gz",
   "num_epochs" : 100,
   "vector_size" : 100,

@@ -135,7 +135,7 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
 
     logger.info("Load kmer generator")
     kmer_seq_iterable = KmerGenerator(
-            options.fasta_file,
+            options.genome_file,
             options.gff_file,
             options.k_low,
             options.k_high,
