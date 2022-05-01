@@ -141,7 +141,7 @@ class KmerGenerator:
     def _generator(self, rng):
         if self.logger is not None:
             self.logger.addHandler(TqdmLoggingHandler())
-        for features, i in tqdm(enumerate(self.genome.features), total=len(self.genome.features))
+        for features, i in tqdm(enumerate(self.genome.features), total=len(self.genome.features)):
             yield features.seq, i
 
     def __iter__(self):
