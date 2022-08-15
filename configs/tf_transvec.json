@@ -1,0 +1,23 @@
+{
+  "exp_name": "transvec_model",
+  "_trainin" : "Training Parameter",
+    "features_files" : ["run/data/hg38/chrs/chr1.fe.fa.gz"],
+  "arch" : "skip_gram",
+  "algm" : "negative_sampling",
+  "num_epochs" : 1,
+  "batch_size" : 256,
+  "max_vocab_size" : 0,
+  "min_count" : 10,
+  "sample" : 1e-3,
+  "window_size": 10,
+  "hidden_size" : 100,
+  "negatives": 5,
+  "power" : 0.75,
+  "alpha" : 0.025,
+  "min_alpha" : 0.0001,
+  "add_bias" : 1,
+  "log_per_steps": 10000,
+  "k" : 8, 
+  "seed" : 42,
+  "workers" : 48
+}
