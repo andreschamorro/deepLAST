@@ -59,6 +59,17 @@ class ModelCheckpoint(CallbackAny2Vec):
         self._write_filepath = file_path 
         return self._write_filepath
 
+class MonitorCallback(CallbackAny2Vec):
+    def __init__(self, test_words=[]):
+        self._test_words = test_words
+        self.epoch = 0
+
+    def on_epoch_end(self, model):
+        print('Loss after epoch {}: {:e}'.format(self.epoch, model.get_latest_training_loss()))
+        for word in self._test_words:  # show wv logic changes
+            print(model.wv.most_similar(word))
+        self.epoch += 1
+
 class EpochLogger(CallbackAny2Vec):
     '''Callback to log information about training'''
 
@@ -89,14 +100,14 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
         logger.info('Transvec restoring from old model {}'.format(latest_model))
         return Doc2Vec.load(latest_model), False
     else:
-        return Doc2Vec(vector_size=options.vector_size, workers=options.workers), True
+        return Doc2Vec(vector_size=options.vector_size, workers=options.workers, compute_loss=True), True
 
 def build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=False, save=False):
 
     # build the vocabulary
     logger.info("Build the vocabulary")
     start_time = time.time()
-    model.build_vocab(corpus_iterable=kmer_seq_iterable, update=update)
+    model.build_vocab(corpus_iterable=kmer_seq_iterable)
     stop_time = time.time()
     if save:
         model.save(os.path.join(checkpoint_dir, 'model_vocab.model'))
@@ -106,14 +117,15 @@ def build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=False, 
 
 def training(options: Options, model, kmer_seq_iterable, checkpoint_dir, logger, extra_callback=None):
 
-    model_checkpoint_callback = ModelCheckpoint(filepath=os.path.join(checkpoint_dir, '{epoch:002d}'))
-    callbacks = [model_checkpoint_callback]
+    model_checkpoint_callback = ModelCheckpoint(filepath=os.path.join(checkpoint_dir, '{epoch:002d}'), save_last=2)
+    model_monitor_callback = MonitorCallback()
+    callbacks = [model_checkpoint_callback, model_monitor_callback]
     if extra_callback: callbacks.append(extra_callback)
 
     # train
     logger.info("Transvec training...")
     start_time = time.time()
-    model.train(corpus_iterable=kmer_seq_iterable, total_examples=model.corpus_count, epochs=options.num_epochs, callbacks=callbacks)
+    model.train(corpus_iterable=kmer_seq_iterable, total_examples=model.corpus_count, epochs=options.num_epochs, queue_factor=4, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 

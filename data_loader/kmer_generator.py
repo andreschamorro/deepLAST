@@ -90,7 +90,7 @@ class Genome:
             with bgzf.open(self.feature_file, 'r') as handle:
                 self.features = [feature for feature in SeqIO.parse(handle, "fasta")]
                 if self.logger is not None:
-                    self.logger.info('Opened file: {}'.format(feature_file))
+                    self.logger.info('Opened file: {}'.format(self.feature_file))
                     self.logger.info('Memory usage: {} MB'.format(memory_usage()))
         elif os.path.exists(self.feature_file) and os.path.getmtime(
                 self.feature_file) < os.path.getmtime(
@@ -98,7 +98,7 @@ class Genome:
             with bgzf.open(self.feature_file, 'r') as handle:
                 self.features = [feature for feature in SeqIO.parse(handle, "fasta")]
                 if self.logger is not None:
-                    self.logger.info('Opened file: {}'.format(feature_file))
+                    self.logger.info('Opened file: {}'.format(self.feature_file))
                     self.logger.info('Memory usage: {} MB'.format(memory_usage()))
             warnings.warn(
                 "Feature file {0} is older than genome file {1}.".format(
@@ -141,8 +141,11 @@ class KmerGenerator:
     def _generator(self, rng):
         if self.logger is not None:
             self.logger.addHandler(TqdmLoggingHandler())
-        for features, i in tqdm(enumerate(self.genome.features), total=len(self.genome.features)):
+        for i, features in tqdm(enumerate(self.genome.features), total=len(self.genome.features)):
             yield features.seq, i
+
+    def __len__(self):
+        return len(self.genome.features)
 
     def __iter__(self):
         self.iter_count += 1
