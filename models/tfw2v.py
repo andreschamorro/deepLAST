@@ -56,38 +56,22 @@ def build_model(options: Options, tokenizer, builder, logger, prev_checkpoint=No
 
 def training(options: Options, model, dataset, builder, checkpoint_dir, logger, extra_callback=None):
 
-    #train_step_signature = get_train_step_signature(
-    #        options.arch, options.algm, options.batch_size, options.window_size, builder._max_depth)
-    #optimizer = tf.keras.optimizers.SGD(1.0)
+    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            filepath=checkpoint_dir,
+            save_weights_only=True,
+            monitor='loss',
+            mode='min',
+            save_best_only=True)
+    callbacks = [model_checkpoint_callback]
+    if extra_callback: callbacks.append(extra_callback)
 
     logger.info("Transvec training...")
     start_time = time.time()
-    model.fit(dataset, epochs=options.num_epochs)
+    model.fit(dataset, epochs=options.num_epochs, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 
-    #average_loss = 0.
-    ## Iterate over epochs.
-    #for epoch in range(options.num_epochs):
-    #    print("Start of epoch %d" % (epoch,))
-    #    for step, (inputs, labels, progress) in enumerate(dataset):
-    #        loss, learning_rate = train_step(inputs, labels, progress)
-    #        average_loss += loss.numpy().mean()
-    #        if step % options.log_per_steps == 0:
-    #            if step > 0:
-    #                average_loss /= options.log_per_steps
-    #            print('step:', step, 'average_loss:', average_loss,
-    #                        'learning_rate:', learning_rate.numpy())
-    #            average_loss = 0.
-
-    #syn0_final = model.weights[0].numpy()
-    #np.save(os.path.join(FLAGS.out_dir, 'syn0_final'), syn0_final)
-    #with tf.io.gfile.GFile(os.path.join(FLAGS.out_dir, 'vocab.txt'), 'w') as f:
-    #    for w in tokenizer.table_words:
-    #        f.write(w + '\n')
-    #print('Word embeddings saved to', 
-    #        os.path.join(FLAGS.out_dir, 'syn0_final.npy'))
-    #print('Vocabulary saved to', os.path.join(FLAGS.out_dir, 'vocab.txt'))
+    return model
 
 def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=True):
     fast_options = resource_filename(
@@ -110,3 +94,13 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
 
     logger.info("Training...")
     model = training(options, model, dataset, builder, checkpoint_dir, logger)
+
+    if save_model:
+        syn0_final = model.weights[0].numpy()
+        np.save(os.path.join(checkpoint_dir, 'syn0_final'), syn0_final)
+        with tf.io.gfile.GFile(os.path.join(checkpoint_dir, 'vocab.txt'), 'w') as f:
+            for w in tokenizer.table_words:
+                f.write(w + '\n')
+        logger.info('Word embeddings saved to', 
+                os.path.join(checkpoint_dir, 'syn0_final.npy'))
+        logger.info('Vocabulary saved to', os.path.join(checkpoint_dir, 'vocab.txt'))
