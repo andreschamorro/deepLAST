@@ -10,8 +10,16 @@ import numpy as np
 import tensorflow as tf
 from Bio import bgzf, SeqIO
 
+AUTOTUNE = tf.data.AUTOTUNE
 OOV_ID = -1
 
+_base_to_int = {
+        'T': 0, 't': 0,
+        'C': 1, 'c': 1,
+        'A': 2, 'a': 2,
+        'G': 3, 'g': 3,
+        'N': 4} # Like T in two bits
+_bases = ['T', 'C', 'A', 'G']
 
 class KmerTokenizer(object):
     """Vanilla word tokenizer that spits out space-separated tokens from raw text 
@@ -38,6 +46,8 @@ class KmerTokenizer(object):
         self._unigram_counts = None
         self._keep_probs = None
 
+        self._mask = np.uint64((np.uint64(1) << np.uint64(2*self._k))-1)
+
     @property
     def unigram_counts(self):
         return self._unigram_counts
@@ -47,7 +57,13 @@ class KmerTokenizer(object):
         return self._table_words
 
     def _kmer(self, sequence):
-        return [sequence[i: i+self._k] for i in range(len(sequence) - self._k + 1)]
+        kmer = np.uint64(0)
+        l = 0
+        for n in sequence:
+            kmer = (kmer << np.uint64(2) | np.uint64(_base_to_int[n])) & self._mask
+            l += 1
+            if (l >= self._k):
+                yield kmer
 
     def _standardization(self, sequence):
         return re.sub(r'[^actg]', '', sequence.lower())
@@ -93,14 +109,14 @@ class KmerTokenizer(object):
             filenames: list of strings, holding names of text files.
         """
         raw_vocab = self._build_raw_vocab(filenames)
-        raw_vocab = [(w, c) for w, c in raw_vocab if c >= self._min_count]
-        self._corpus_size = sum(list(zip(*raw_vocab))[1])
+        raw_vocab = {w: c for w, c in raw_vocab if c >= self._min_count}
+        self._corpus_size = sum(list(raw_vocab.values()))
 
         self._vocab = {}
         self._table_words = []
         self._unigram_counts = []
         self._keep_probs = []
-        for index, (word, count) in enumerate(raw_vocab):
+        for index, (word, count) in enumerate(raw_vocab.items()):
             frac = count / float(self._corpus_size)
             keep_prob = (np.sqrt(frac / self._sample) + 1) * (self._sample / frac)
             keep_prob = np.minimum(keep_prob, 1.0)
@@ -246,7 +262,7 @@ class Kmer2VecDatasetBuilder(object):
                 progress: [N], the percentage of sentences covered so far. Used to 
                     compute learning rate.
         """
-        unigram_counts = self._tokenizer._unigram_counts
+        unigram_counts = self._tokenizer.unigram_counts
         keep_probs = self._tokenizer._keep_probs
 
         if self._algm == 'hierarchical_softmax':
@@ -260,7 +276,7 @@ class Kmer2VecDatasetBuilder(object):
 
         # total num of sentences (lines) across text files times num of epochs
         num_sents = sum([len([feature for feature in SeqIO.parse(bgzf.open(fn, 'r'), "fasta")])
-            for fn in filenames]) * self._epochs
+            for fn in filenames])
 
         def generator_fn():
             #for epoch in range(self._epochs):
@@ -321,6 +337,8 @@ class Kmer2VecDatasetBuilder(object):
 
         dataset = dataset.map(lambda tensor, progress: 
                 prepare_inputs_labels(tensor, progress))
+
+        dataset = dataset.cache().prefetch(buffer_size=AUTOTUNE)
 
         return dataset
 

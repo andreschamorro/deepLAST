@@ -149,11 +149,18 @@ class Word2VecModel(tf.keras.Model):
                 shape=[self._input_size],
                 initializer=tf.keras.initializers.Zeros()) 
 
+    def compile(self, optimizer, metrics=None, **kwargs):
+        if self._algm == 'negative_sampling':
+            loss = self._negative_sampling_loss
+        elif self._algm == 'hierarchical_softmax':
+            loss = self._hierarchical_softmax_loss
+        super(Word2VecModel, self).compile(optimizer=optimizer, loss=loss, metrics=metrics, **kwargs)
+
     #@tf.function(input_signature=self._train_step_signature)
     def train_step(self, data):
         inputs, labels, progress = data
         with tf.GradientTape() as tape:
-            loss = self((inputs, labels), training=True)
+            loss = self.compiled_loss(inputs, labels, regularization_losses=self.losses)
 
         # Compute gradients
         trainable_vars = self.trainable_variables
@@ -194,12 +201,7 @@ class Word2VecModel(tf.keras.Model):
         Returns:
             loss: float tensor, cross entropy loss. 
         """
-        inputs, labels = x
-        if self._algm == 'negative_sampling':
-            loss = self._negative_sampling_loss(inputs, labels)
-        elif self._algm == 'hierarchical_softmax':
-            loss = self._hierarchical_softmax_loss(inputs, labels)
-        return loss
+        return x 
  
     def _negative_sampling_loss(self, inputs, labels):
         """Builds the loss for negative sampling.

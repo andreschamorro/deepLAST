@@ -4,12 +4,13 @@ from pkg_resources import resource_filename
 from utils import logger as Logger
 import time  # To time our operations
 
+import numpy as np
+import tensorflow as tf
+
 from configs.config import Options
 from data_loader.tfkmer import KmerTokenizer, Kmer2VecDatasetBuilder
 from models.models import Word2VecModel
 #, get_train_step_signature
-
-import tensorflow as tf
 
 def _create_check_dir(options) -> str:
     """Standarized formating of checkpoint dirs.
@@ -51,13 +52,13 @@ def build_model(options: Options, tokenizer, builder, logger, prev_checkpoint=No
             min_alpha=options.min_alpha,
             add_bias=options.add_bias)
 
-    word2vec.compile(optimizer=tf.keras.optimizers.SGD(1.0))
+    word2vec.compile(optimizer = tf.keras.optimizers.SGD(1.0))
     return word2vec, True
 
 def training(options: Options, model, dataset, builder, checkpoint_dir, logger, extra_callback=None):
 
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-            filepath=checkpoint_dir,
+            filepath=os.path.join(checkpoint_dir, 'ckpt_weights'),
             save_weights_only=True,
             monitor='loss',
             mode='min',
@@ -67,13 +68,13 @@ def training(options: Options, model, dataset, builder, checkpoint_dir, logger, 
 
     logger.info("Transvec training...")
     start_time = time.time()
-    model.fit(dataset, epochs=options.num_epochs, callbacks=callbacks)
+    history = model.fit(dataset, epochs=options.num_epochs, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 
-    return model
+    return history, model
 
-def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=True):
+def run(prev_checkpoint=None, continue_train=True, save_model=True):
     fast_options = resource_filename(
             'configs',
             'tf_transvec.json'
@@ -93,14 +94,12 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     model, update = build_model(options, tokenizer, builder, logger, prev_checkpoint, continue_train)
 
     logger.info("Training...")
-    model = training(options, model, dataset, builder, checkpoint_dir, logger)
+    history, model = training(options, model, dataset, builder, checkpoint_dir, logger)
 
     if save_model:
         syn0_final = model.weights[0].numpy()
         np.save(os.path.join(checkpoint_dir, 'syn0_final'), syn0_final)
-        with tf.io.gfile.GFile(os.path.join(checkpoint_dir, 'vocab.txt'), 'w') as f:
-            for w in tokenizer.table_words:
-                f.write(w + '\n')
-        logger.info('Word embeddings saved to', 
-                os.path.join(checkpoint_dir, 'syn0_final.npy'))
-        logger.info('Vocabulary saved to', os.path.join(checkpoint_dir, 'vocab.txt'))
+        np.save(os.path.join(checkpoint_dir, 'vocab'), list(tokenizer.table_words))
+        np.save(os.path.join(checkpoint_dir, 'count'), list(tokenizer.unigram_counts))
+        logger.info('Word embeddings saved to {}'.format(os.path.join(checkpoint_dir, 'syn0_final.npy')))
+        logger.info('Vocabulary saved to {}'.format(os.path.join(checkpoint_dir, 'vocab.npy')))
