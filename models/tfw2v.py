@@ -62,13 +62,14 @@ def training(options: Options, model, dataset, builder, checkpoint_dir, logger, 
             save_weights_only=True,
             monitor='loss',
             mode='min',
-            save_best_only=True)
+            save_best_only=True,
+            save_freq=1000000)
     callbacks = [model_checkpoint_callback]
     if extra_callback: callbacks.append(extra_callback)
 
     logger.info("Transvec training...")
     start_time = time.time()
-    history = model.fit(dataset, epochs=options.num_epochs, callbacks=callbacks)
+    history = model.fit(dataset, epochs=1, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 
@@ -95,6 +96,7 @@ def run(prev_checkpoint=None, continue_train=True, save_model=True):
 
     logger.info("Training...")
     history, model = training(options, model, dataset, builder, checkpoint_dir, logger)
+    np.save(os.path.join(checkpoint_dir, 'history.npy'), history.history)
 
     if save_model:
         syn0_final = model.weights[0].numpy()

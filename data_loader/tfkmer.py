@@ -275,21 +275,21 @@ class Kmer2VecDatasetBuilder(object):
         keep_probs = tf.cast(tf.constant(keep_probs), 'float32')
 
         # total num of sentences (lines) across text files times num of epochs
-        num_sents = sum([len([feature for feature in SeqIO.parse(bgzf.open(fn, 'r'), "fasta")])
-            for fn in filenames])
+        self.num_sents = sum([len([feature for feature in SeqIO.parse(bgzf.open(fn, 'r'), "fasta")])
+            for fn in filenames]) * self._epochs
 
         def generator_fn():
-            #for epoch in range(self._epochs):
-            #    print("Start of epoch %d" % (epoch,))
-            for fn in filenames:
-                with bgzf.open(fn, 'r') as fa:
-                    for feature in SeqIO.parse(fa, "fasta"):
-                        yield self._tokenizer.encode(str(feature.seq))
+            for epoch in range(self._epochs):
+                print("\n Start of epoch %d" % (epoch,))
+                for fn in filenames:
+                    with bgzf.open(fn, 'r') as fa:
+                        for feature in SeqIO.parse(fa, "fasta"):
+                            yield self._tokenizer.encode(str(feature.seq))
 
         # dataset: [([int], float)]
         dataset = tf.data.Dataset.zip((
                 tf.data.Dataset.from_generator(generator_fn, tf.int64, [None]),
-                tf.data.Dataset.from_tensor_slices(tf.range(num_sents) / num_sents)))
+                tf.data.Dataset.from_tensor_slices(tf.range(self.num_sents) / self.num_sents)))
         # dataset: [([int], float)]
         dataset = dataset.map(lambda indices, progress: 
                 (subsample(indices, keep_probs), progress))
