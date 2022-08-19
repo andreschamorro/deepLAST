@@ -84,7 +84,7 @@ class EpochLogger(CallbackAny2Vec):
         print("Epoch #{} end".format(self.epoch))
         self.epoch += 1
 
-def build_model(options: Options, logger, prev_checkpoint=None, continue_train=True):
+def build_model(options: Options, corpus_file, logger, prev_checkpoint=None, continue_train=True):
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
     checkpoints = [os.path.join(prev_checkpoint, f)
@@ -101,19 +101,19 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
         logger.info('Transvec restoring from old model {}'.format(latest_model))
         return Doc2Vec.load(latest_model), False
     else:
-        return Doc2Vec(vector_size=options.vector_size, 
+        return Doc2Vec(corpus_file=corpus_file, vector_size=options.vector_size, 
                 window=options.window_size, alpha=options.alpha, min_alpha=options.min_alpha,
                 seed=options.seed, min_count=options.min_count, max_vocab_size=options.max_vocab_size,
                 sample=options.sample, workers=options.workers, epochs=options.num_epochs,
                 hs=options.hs, negative=options.negative, ns_exponent=options.ns_exponent,
                 compute_loss=True), True
 
-def build_vocab(model, kmer_generator, checkpoint_dir, logger, update=False, save=False):
+def build_vocab(model, corpus_file, checkpoint_dir, logger, update=False, save=False):
 
     # build the vocabulary
     logger.info("Build the vocabulary")
     start_time = time.time()
-    model.build_vocab(corpus_iterable=kmer_generator)
+    model.build_vocab(corpus_file=corpus_file)
     stop_time = time.time()
     if save:
         np.save(os.path.join(checkpoint_dir, 'vocab'), model.wv.index_to_key)
@@ -121,7 +121,7 @@ def build_vocab(model, kmer_generator, checkpoint_dir, logger, update=False, sav
     
     return model
 
-def training(options: Options, model, kmer_generator, checkpoint_dir, logger, extra_callback=None):
+def training(options: Options, model, corpus_file, checkpoint_dir, logger, extra_callback=None):
 
     model_checkpoint_callback = ModelCheckpoint(filepath=os.path.join(checkpoint_dir, '{epoch:002d}'), save_last=2)
     model_monitor_callback = MonitorCallback()
@@ -131,7 +131,7 @@ def training(options: Options, model, kmer_generator, checkpoint_dir, logger, ex
     # train
     logger.info("Transvec training...")
     start_time = time.time()
-    model.train(corpus_iterable=kmer_generator, 
+    model.train(corpus_file=corpus_file, 
             total_examples=model.corpus_count, 
             epochs=options.num_epochs, queue_factor=4, callbacks=callbacks)
     stop_time = time.time()
@@ -156,12 +156,15 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     logger.info("Build model")
     model, update = build_model(options, logger, prev_checkpoint, continue_train)
 
-    logger.info("Load kmer generator")
-    kmer_generator = TrnsIterator(options.features_file, options.k)
-    if update:
-        model = build_vocab(model, kmer_generator, checkpoint_dir, logger, update=update, save=save_vocab)
+    logger.info("Create corpus file from generator")
+    corpus_file = os.path.join(checkpoint_dir, 'corpus_file.txt')
+    with open(corpus_file, "w") as cf:
+        cf.write("\n".join([tokens for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
 
-    model = training(options, model, kmer_generator, checkpoint_dir, logger)
+    if update:
+        model = build_vocab(model, corpus_file, checkpoint_dir, logger, update=update, save=save_vocab)
+
+    model = training(options, model, corpus_file, checkpoint_dir, logger)
     if save_model:
         logger.info("Save wv vectors")
         model.save(os.path.join(checkpoint_dir, 'transvec_model'))
