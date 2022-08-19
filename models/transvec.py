@@ -87,10 +87,13 @@ class EpochLogger(CallbackAny2Vec):
 def build_model(options: Options, corpus_file, logger, prev_checkpoint=None, continue_train=True):
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
-    checkpoints = [os.path.join(prev_checkpoint, f)
-            for f in os.listdir(prev_checkpoint) if f[:2].isdigit()]
-    old_model = [os.path.join(prev_checkpoint, f)
-            for f in os.listdir(prev_checkpoint) if os.path.splitext(f)[1] == '.model']
+    checkpoint = None
+    old_model = None
+    if prev_checkpoint:
+        checkpoints = [os.path.join(prev_checkpoint, f)
+                for f in os.listdir(prev_checkpoint) if f[:2].isdigit()]
+        old_model = [os.path.join(prev_checkpoint, f)
+                for f in os.listdir(prev_checkpoint) if os.path.splitext(f)[1] == '.model']
     # make_or_restore_model
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
