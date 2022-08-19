@@ -87,13 +87,10 @@ class EpochLogger(CallbackAny2Vec):
 def build_model(options: Options, corpus_file, logger, prev_checkpoint=None, continue_train=True):
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
-    checkpoint = None
-    old_model = None
-    if prev_checkpoint:
-        checkpoints = [os.path.join(prev_checkpoint, f)
-                for f in os.listdir(prev_checkpoint) if f[:2].isdigit()]
-        old_model = [os.path.join(prev_checkpoint, f)
-                for f in os.listdir(prev_checkpoint) if os.path.splitext(f)[1] == '.model']
+    checkpoints = [os.path.join(prev_checkpoint, f)
+            for f in os.listdir(prev_checkpoint) if f[:2].isdigit()]
+    old_model = [os.path.join(prev_checkpoint, f)
+            for f in os.listdir(prev_checkpoint) if os.path.splitext(f)[1] == '.model']
     # make_or_restore_model
     if checkpoints:
         latest_checkpoint = max(checkpoints, key=os.path.getctime)
@@ -156,14 +153,14 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     logger.info("Create checkpoint dir")
     checkpoint_dir = _create_check_dir(options)
 
-    logger.info("Build model")
-    model, update = build_model(options, logger, prev_checkpoint, continue_train)
-
     logger.info("Create corpus file from generator")
     corpus_file = os.path.join(checkpoint_dir, 'corpus_file.txt')
     with open(corpus_file, "w") as cf:
         cf.write("\n".join([" ".join(tokens)
             for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
+
+    logger.info("Build model")
+    model, update = build_model(options, corpus_file, logger, prev_checkpoint, continue_train)
 
     if update:
         model = build_vocab(model, corpus_file, checkpoint_dir, logger, update=update, save=save_vocab)
