@@ -133,7 +133,7 @@ def training(options: Options, model, corpus_file, checkpoint_dir, logger, extra
     start_time = time.time()
     model.train(corpus_file=corpus_file, 
             total_examples=model.corpus_count, 
-            epochs=options.num_epochs, queue_factor=4, callbacks=callbacks)
+            epochs=options.num_epochs, queue_factor=options.queue_factor, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 
@@ -159,7 +159,8 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     logger.info("Create corpus file from generator")
     corpus_file = os.path.join(checkpoint_dir, 'corpus_file.txt')
     with open(corpus_file, "w") as cf:
-        cf.write("\n".join([tokens for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
+        cf.write("\n".join([" ".join(tokens)
+            for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
 
     if update:
         model = build_vocab(model, corpus_file, checkpoint_dir, logger, update=update, save=save_vocab)
