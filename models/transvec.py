@@ -1,11 +1,12 @@
 import os
 from datetime import datetime
+import numpy as np
 from pkg_resources import resource_filename
 from gensim.test.utils import get_tmpfile
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
 from configs.config import Options
-from data_loader.kmer_generator import KmerGenerator
+from data_loader.trns_generator import read_trns
 from data_loader.threadedgenerator import ThreadedGenerator 
 from utils import logger as Logger
 import time  # To time our operations
@@ -100,22 +101,27 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
         logger.info('Transvec restoring from old model {}'.format(latest_model))
         return Doc2Vec.load(latest_model), False
     else:
-        return Doc2Vec(vector_size=options.vector_size, workers=options.workers, compute_loss=True), True
+        return Doc2Vec(vector_size=options.vector_size, 
+                window=options.window_size, alpha=options.alpha, min_alpha=options.min_alpha,
+                seed=options.seed, min_count=options.min_count, max_vocab_size=options.max_vocab_size,
+                sample=options.sample, workers=options.workers, epochs=options.num_epochs,
+                hs=options.hs, negative=options.negative, ns_exponent=options.ns_exponent,
+                compute_loss=True), True
 
-def build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=False, save=False):
+def build_vocab(model, kmer_generator, checkpoint_dir, logger, update=False, save=False):
 
     # build the vocabulary
     logger.info("Build the vocabulary")
     start_time = time.time()
-    model.build_vocab(corpus_iterable=kmer_seq_iterable)
+    model.build_vocab(corpus_iterable=kmer_generator)
     stop_time = time.time()
     if save:
-        model.save(os.path.join(checkpoint_dir, 'model_vocab.model'))
+        np.save(os.path.join(checkpoint_dir, 'vocab'), model.wv.index_to_key)
     logger.info('Time to build vocab: {} mins'.format(round((stop_time - start_time) / 60, 2)))
     
     return model
 
-def training(options: Options, model, kmer_seq_iterable, checkpoint_dir, logger, extra_callback=None):
+def training(options: Options, model, kmer_generator, checkpoint_dir, logger, extra_callback=None):
 
     model_checkpoint_callback = ModelCheckpoint(filepath=os.path.join(checkpoint_dir, '{epoch:002d}'), save_last=2)
     model_monitor_callback = MonitorCallback()
@@ -125,15 +131,13 @@ def training(options: Options, model, kmer_seq_iterable, checkpoint_dir, logger,
     # train
     logger.info("Transvec training...")
     start_time = time.time()
-    model.train(corpus_iterable=kmer_seq_iterable, total_examples=model.corpus_count, epochs=options.num_epochs, queue_factor=4, callbacks=callbacks)
+    model.train(corpus_iterable=kmer_generator, 
+            total_examples=model.corpus_count, 
+            epochs=options.num_epochs, queue_factor=4, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 
     return model
-
-def write_vec(model, outpath):
-    out_filename = '{}.w2v'.format(outpath)
-    model.wv.save_word2vec_format(out_filename, binary=False)
 
 def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=True):
     fast_options = resource_filename(
@@ -153,17 +157,11 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     model, update = build_model(options, logger, prev_checkpoint, continue_train)
 
     logger.info("Load kmer generator")
-    kmer_seq_iterable = KmerGenerator(
-            options.genome_file,
-            options.gff_file,
-            options.k_low,
-            options.k_high,
-            options.rseed_trainset,
-            logger=logger)
+    kmer_generator = read_trns(options.features_files, options.k)
     if update:
-        model = build_vocab(model, kmer_seq_iterable, checkpoint_dir, logger, update=update, save=save_vocab)
+        model = build_vocab(model, kmer_generator, checkpoint_dir, logger, update=update, save=save_vocab)
 
-    model = training(options, model, kmer_seq_iterable, checkpoint_dir, logger)
+    model = training(options, model, kmer_generator, checkpoint_dir, logger)
     if save_model:
         logger.info("Save wv vectors")
-        write_vec(model, os.path.join(checkpoint_dir, 'transvec_model'))
+        model.save(os.path.join(checkpoint_dir, 'transvec_model'))
