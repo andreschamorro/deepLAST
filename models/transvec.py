@@ -6,7 +6,7 @@ from gensim.test.utils import get_tmpfile
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
 from configs.config import Options
-from data_loader.trns_generator import read_trns
+from data_loader.trns_generator import TrnsIterator 
 from data_loader.threadedgenerator import ThreadedGenerator 
 from utils import logger as Logger
 import time  # To time our operations
