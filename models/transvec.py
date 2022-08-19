@@ -11,18 +11,19 @@ from data_loader.threadedgenerator import ThreadedGenerator
 from utils import logger as Logger
 import time  # To time our operations
 
-def _create_check_dir(options) -> str:
+def _create_work_dir(options) -> str:
     """Standarized formating of checkpoint dirs.
     Args:
         options (Options): information about the projects name.
     Returns:
         str: standarized logdir path.
     """
+    os.makedirs(options.summary, exist_ok=True)
     now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     checkpoint_dir = os.path.join(options.checkpoint_dir, "transvec_training-{}".format(now))
     # create file handler which logs even debug messages
     os.makedirs(f'{checkpoint_dir}', exist_ok=True)
-    return checkpoint_dir
+    return summary_dir, checkpoint_dir
 
 class ModelCheckpoint(CallbackAny2Vec):
     '''Callback to save model after each epoch.'''
@@ -84,7 +85,7 @@ class EpochLogger(CallbackAny2Vec):
         print("Epoch #{} end".format(self.epoch))
         self.epoch += 1
 
-def build_model(options: Options, corpus_file, logger, prev_checkpoint=None, continue_train=True):
+def build_model(options: Options, logger, prev_checkpoint=None, continue_train=True):
     # Either restore the latest model, or create a fresh one
     # if there is no checkpoint available.
     checkpoints = [os.path.join(prev_checkpoint, f)
@@ -101,7 +102,7 @@ def build_model(options: Options, corpus_file, logger, prev_checkpoint=None, con
         logger.info('Transvec restoring from old model {}'.format(latest_model))
         return Doc2Vec.load(latest_model), False
     else:
-        return Doc2Vec(corpus_file=corpus_file, vector_size=options.vector_size, 
+        return Doc2Vec(vector_size=options.vector_size, 
                 window=options.window_size, alpha=options.alpha, min_alpha=options.min_alpha,
                 seed=options.seed, min_count=options.min_count, max_vocab_size=options.max_vocab_size,
                 sample=options.sample, workers=options.workers, epochs=options.num_epochs,
@@ -139,7 +140,7 @@ def training(options: Options, model, corpus_file, checkpoint_dir, logger, extra
 
     return model
 
-def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=True):
+def run(prev_checkpoint=None, continue_train=True, corpus_file=None, save_vocab=False, save_model=True):
     fast_options = resource_filename(
             'configs',
             'transvec.json'
@@ -151,16 +152,17 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     logger = Logger.get_logger('transvec', log_dir)
 
     logger.info("Create checkpoint dir")
-    checkpoint_dir = _create_check_dir(options)
+    summary_dir, checkpoint_dir = _create_work_dir(options)
 
-    logger.info("Create corpus file from generator")
-    corpus_file = os.path.join(checkpoint_dir, 'corpus_file.txt')
-    with open(corpus_file, "w") as cf:
-        cf.write("\n".join([" ".join(tokens)
-            for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
+    if not corpus_file:
+        logger.info("Create corpus file from generator")
+        corpus_file = os.path.join(summary_dir, 'corpus_file.txt')
+        with open(corpus_file, "w") as cf:
+            cf.write("\n".join([" ".join(tokens)
+                for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
 
     logger.info("Build model")
-    model, update = build_model(options, corpus_file, logger, prev_checkpoint, continue_train)
+    model, update = build_model(options, logger, prev_checkpoint, continue_train)
 
     if update:
         model = build_vocab(model, corpus_file, checkpoint_dir, logger, update=update, save=save_vocab)

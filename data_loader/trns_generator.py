@@ -47,7 +47,7 @@ def trns_by_id(bgz_file):
 def read_trns(bgz_file, k, tokens_only=False):
     for t_id, seq in trns_by_id(bgz_file).items():
         if tokens_only:
-            yield list(_kmer_tokenizer(seq, k))
+            yield list(map(str, _kmer_tokenizer(seq, k)))
         else:
             yield TaggedDocument(list(_kmer_tokenizer(seq, k)), [t_id])
 
