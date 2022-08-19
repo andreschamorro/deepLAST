@@ -1,7 +1,7 @@
 {
   "exp_name": "transvec_model",
   "_trainin" : "Training Parameter",
-    "features_file" : ["run/data/hg38/hg38.fe.fa.gz"],
+    "features_file" : "run/data/hg38/hg38.fe.fa.gz",
   "num_epochs" : 100,
   "vector_size" : 100,
   "k" : 17, 

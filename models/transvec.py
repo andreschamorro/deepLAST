@@ -157,7 +157,7 @@ def run(prev_checkpoint=None, continue_train=True, save_vocab=False, save_model=
     model, update = build_model(options, logger, prev_checkpoint, continue_train)
 
     logger.info("Load kmer generator")
-    kmer_generator = read_trns(options.features_files, options.k)
+    kmer_generator = TrnsIterator(options.features_file, options.k)
     if update:
         model = build_vocab(model, kmer_generator, checkpoint_dir, logger, update=update, save=save_vocab)
 

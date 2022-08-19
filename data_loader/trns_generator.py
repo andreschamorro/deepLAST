@@ -50,3 +50,23 @@ def read_trns(bgz_file, k, tokens_only=False):
             yield list(_kmer_tokenizer(seq, k))
         else:
             yield TaggedDocument(list(_kmer_tokenizer(seq, k)), [t_id])
+
+class TrnsIterator():
+    def __init__(self, bgz_file, k, tokens_only=False):
+        self.generator_function = read_trns 
+        self.bgz_file = bgz_file
+        self.k = k
+        self.tokens_only = tokens_only
+        self.generator = self.generator_function(self.bgz_file, self.k, self.tokens_only) 
+
+    def __iter__(self):
+        # reset the generator
+        self.generator = self.generator_function(self.bgz_file, self.k, self.tokens_only)
+        return self
+
+    def __next__(self):
+        result = next(self.generator)
+        if result is None:
+            raise StopIteration
+        else:
+            return result
