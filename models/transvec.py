@@ -6,7 +6,7 @@ from gensim.test.utils import get_tmpfile
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.models.doc2vec import Doc2Vec
 from configs.config import Options
-from data_loader.trns_generator import read_trns 
+from data_loader.trns_generator import TaggedKPairRead
 from data_loader.threadedgenerator import ThreadedGenerator 
 from utils import logger as Logger
 import time  # To time our operations
@@ -18,7 +18,7 @@ def _create_work_dir(options) -> str:
     Returns:
         str: standarized logdir path.
     """
-    os.makedirs(options.summary, exist_ok=True)
+    summary_dir = os.makedirs(options.summary_dir, exist_ok=True)
     now = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     checkpoint_dir = os.path.join(options.checkpoint_dir, "transvec_training-{}".format(now))
     # create file handler which logs even debug messages
@@ -62,14 +62,37 @@ class ModelCheckpoint(CallbackAny2Vec):
         return self._write_filepath
 
 class MonitorCallback(CallbackAny2Vec):
-    def __init__(self, test_words=[]):
-        self._test_words = test_words
+    '''Report Recall@K metric at end of each epoch
+
+    Computes and reports Recall@K on a validation set with
+    a given value of k (number of recommendations to generate).
+    '''
+    def __init__(self, validation, k=10, ray=False):
         self.epoch = 0
+        self.validation = validation
+        self.k = k
+        self.ray = ray
 
     def on_epoch_end(self, model):
-        print('Loss after epoch {}: {:e}'.format(self.epoch, model.get_latest_training_loss()))
-        for word in self._test_words:  # show wv logic changes
-            print(model.wv.most_similar(word))
+        # compute the metric we care about on a recommendation task
+			  # with the validation set using the model's embedding vectors
+        score = 0
+        for query_item, ground_truth in self.validation:
+            try:
+                # get the k most similar items to the query item
+                neighbors = model.dv.most_similar([model.infer_vector(query_item)], topn=self.k)
+            except KeyError:
+                pass
+            else:
+                recommendations = [item for item, distance in neighbors]
+                if ground_truth in recommendations:
+                    score += 1
+        score /= len(self.validation)
+
+        if self.ray:
+            tune.report(recall_at_k = score)
+        else:
+            print(f"Epoch {self.epoch} -- Recall@{self.k}: {score}")
         self.epoch += 1
 
 class EpochLogger(CallbackAny2Vec):
@@ -102,19 +125,20 @@ def build_model(options: Options, logger, prev_checkpoint=None, continue_train=T
         logger.info('Transvec restoring from old model {}'.format(latest_model))
         return Doc2Vec.load(latest_model), False
     else:
-        return Doc2Vec(vector_size=options.vector_size, 
+        return Doc2Vec(vector_size=options.vector_size, dm_mean=options.dm_mean, dm=options.dm,
+                dbow_words=options.dbow_words, dm_concat=options.dm_concat, 
                 window=options.window_size, alpha=options.alpha, min_alpha=options.min_alpha,
                 seed=options.seed, min_count=options.min_count, max_vocab_size=options.max_vocab_size,
                 sample=options.sample, workers=options.workers, epochs=options.num_epochs,
                 hs=options.hs, negative=options.negative, ns_exponent=options.ns_exponent,
                 compute_loss=True), True
 
-def build_vocab(model, corpus_file, checkpoint_dir, logger, update=False, save=False):
+def build_vocab(model, corpus_iterable, checkpoint_dir, logger, update=False, save=False):
 
     # build the vocabulary
     logger.info("Build the vocabulary")
     start_time = time.time()
-    model.build_vocab(corpus_file=corpus_file)
+    model.build_vocab(corpus_iterable=corpus_iterable)
     stop_time = time.time()
     if save:
         np.save(os.path.join(checkpoint_dir, 'vocab'), model.wv.index_to_key)
@@ -122,25 +146,32 @@ def build_vocab(model, corpus_file, checkpoint_dir, logger, update=False, save=F
     
     return model
 
-def training(options: Options, model, corpus_file, checkpoint_dir, logger, extra_callback=None):
+def training(options: Options, model, corpus_iterable, validation_iterable, checkpoint_dir, logger, extra_callback=None):
 
     model_checkpoint_callback = ModelCheckpoint(filepath=os.path.join(checkpoint_dir, '{epoch:002d}'), save_last=2)
-    model_monitor_callback = MonitorCallback()
+    model_monitor_callback = MonitorCallback(validation_iterable)
     callbacks = [model_checkpoint_callback, model_monitor_callback]
     if extra_callback: callbacks.append(extra_callback)
 
     # train
     logger.info("Transvec training...")
     start_time = time.time()
-    model.train(corpus_file=corpus_file, 
-            total_examples=model.corpus_count, 
+    model.train(corpus_iterable=corpus_iterable, 
+            total_examples=model.corpus_count, total_words=model.corpus_total_words, 
             epochs=options.num_epochs, queue_factor=options.queue_factor, callbacks=callbacks)
     stop_time = time.time()
     logger.info('Time to train the model: {} mins'.format(round((stop_time - start_time) / 60, 2)))
 
     return model
 
-def run(prev_checkpoint=None, continue_train=True, corpus_file=None, save_vocab=False, save_model=True):
+def cipher(i):
+    ids = i.split('|')
+    if len(ids) > 5:
+        return ids[0] + '_' + ids[5]
+    else:
+        return 'L1_' + i
+
+def run(prev_checkpoint=None, continue_train=True, corpus_iterable=None, save_vocab=False, save_model=True):
     fast_options = resource_filename(
             'configs',
             'transvec.json'
@@ -154,20 +185,17 @@ def run(prev_checkpoint=None, continue_train=True, corpus_file=None, save_vocab=
     logger.info("Create checkpoint dir")
     summary_dir, checkpoint_dir = _create_work_dir(options)
 
-    if not corpus_file:
-        logger.info("Create corpus file from generator")
-        corpus_file = os.path.join(summary_dir, 'corpus_file.txt')
-        with open(corpus_file, "w") as cf:
-            cf.write("\n".join([" ".join(tokens)
-                for tokens in read_trns(options.features_file, options.k, tokens_only=True)]))
+    logger.info("Create corpus file from generator")
+    corpus_iterable = TaggedKPairRead(options.features_files, options.k, cipher=cipher).prefetch().shuffle()
+    validation_iterable = corpus_iterable.sample(options.validation_size) 
 
     logger.info("Build model")
     model, update = build_model(options, logger, prev_checkpoint, continue_train)
 
     if update:
-        model = build_vocab(model, corpus_file, checkpoint_dir, logger, update=update, save=save_vocab)
+        model = build_vocab(model, corpus_iterable, checkpoint_dir, logger, update=update, save=save_vocab)
 
-    model = training(options, model, corpus_file, checkpoint_dir, logger)
+    model = training(options, model, corpus_iterable, validation_iterable, checkpoint_dir, logger)
     if save_model:
         logger.info("Save wv vectors")
         model.save(os.path.join(checkpoint_dir, 'transvec_model'))
